@@ -11,9 +11,10 @@ if [[ -z "${SDKROOT:-}" ]] && ! xcode-select -p | grep -q Xcode.app; then
   [[ -n "$SDK" ]] && export SDKROOT="$SDK"
 fi
 
-swift build -c release --arch arm64 --arch x86_64 2>/dev/null || swift build -c release
-BIN=$(swift build -c release --show-bin-path 2>/dev/null)/Glowdeck
-[[ -f "$BIN" ]] || BIN=$(find .build -path '*release*' -name Glowdeck -type f -perm -u+x | head -1)
+ARCHS=(--arch arm64 --arch x86_64)
+swift build -c release "${ARCHS[@]}" || { ARCHS=(); swift build -c release; }
+BIN="$(swift build -c release "${ARCHS[@]}" --show-bin-path)/Glowdeck"
+[[ -f "$BIN" ]] || { echo "Built binary not found at $BIN" >&2; exit 1; }
 
 APP=build/Glowdeck.app
 rm -rf "$APP"

@@ -12,6 +12,7 @@ enum AppModel {
 
 /// Developer flags: `--preview-menu` / `--preview-dashboard` open the views in normal windows
 /// (handy for screenshots and UI work, since a menu bar panel can't be opened programmatically).
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var previewWindows: [NSWindow] = []
 
