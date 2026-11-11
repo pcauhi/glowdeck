@@ -8,6 +8,7 @@ public final class RobobloqLight: LightDevice, @unchecked Sendable {
     private var seq: UInt8 = 0
     private var lastReply = Date.distantPast
     private var opened = false
+    private var missedChecks = 0
 
     fileprivate init(hid: IOHIDDevice, location: Int) {
         self.hid = hid
@@ -55,6 +56,8 @@ public final class RobobloqLight: LightDevice, @unchecked Sendable {
     fileprivate func received(_ report: [UInt8]) {
         queue.async { [self] in
             lastReply = Date()
+            missedChecks = 0
+            log.debug("robobloq reply action=\(report.count > 4 ? report[4] : 0, privacy: .public)")
             if let info = RobobloqProtocol.parseInfo(report), info.ledCount > 0, info.ledCount != ledCount {
                 ledCount = info.ledCount
                 model = "USB light bar · \(info.ledCount) LEDs · fw \(info.firmware)"
@@ -98,6 +101,11 @@ public final class RobobloqLight: LightDevice, @unchecked Sendable {
             send(RobobloqProtocol.readInfo(seq: nextSeq()))
             queue.asyncAfter(deadline: .now() + 0.6) { [self] in
                 guard lastReply < asked else { return }
+                // One late answer shouldn't cost a reconnect (and a visible re-apply).
+                missedChecks += 1
+                guard missedChecks >= 3 else { return }
+                missedChecks = 0
+                log.notice("robobloq health check: 3 missed replies, reopening")
                 if opened { IOHIDDeviceClose(hid, IOOptionBits(kIOHIDOptionsTypeNone)) }
                 opened = IOHIDDeviceOpen(hid, IOOptionBits(kIOHIDOptionsTypeNone)) == kIOReturnSuccess
                 isReachable = false
@@ -142,6 +150,9 @@ public final class RobobloqProvider: DeviceProvider {
             Unmanaged<RobobloqProvider>.fromOpaque(ctx!).takeUnretainedValue().lights[device]?.received(bytes)
         }, ctx)
 
+        // Order matters: callbacks and open() must happen before the queue is activated, or IOKit traps.
+        // Opening through the manager is what makes it deliver the bar's replies (input reports).
+        IOHIDManagerOpen(m, IOOptionBits(kIOHIDOptionsTypeNone))
         IOHIDManagerSetDispatchQueue(m, hidQueue)
         IOHIDManagerActivate(m)
         manager = m

@@ -9,6 +9,34 @@
   A native macOS menu bar app for USB monitor light bars and Wi-Fi smart lights, with themes, smooth effects and a dashboard for the whole home.
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="860" alt="Glowdeck dashboard with rooms and live light previews">
+</p>
+<p align="center">
+  <img src="docs/screenshots/menu.png" width="300" alt="Glowdeck menu bar panel"><br>
+  <sub>Screenshots use <code>--demo</code> mode (simulated lights) so you can see a full house. My own desk runs the real USB bar.</sub>
+</p>
+
+---
+
+## The story
+
+I bought a cheap RGB light bar for the back of my monitor on AliExpress. It looked great and was miserable to use. The official app wasn't made for my Mac, the controls never did what I wanted, and every time the computer slept the bar forgot everything and came back as a rainbow. None of the options made me happy.
+
+So I opened [Claude Code](https://claude.com/claude-code) and asked a simple question: *can you see the light I just plugged in?*
+
+It could. The bar showed up as an unnamed USB device (`ROBOBLOQ USBHID`, `1A86:FE07`) that takes raw 64-byte commands. Other people had already pulled the protocol out of the official app, so we read their notes, sent the light a "who are you?" packet, and it answered: 75 LEDs, firmware 1.9.4. A few minutes later it turned red because a 60-line script told it to.
+
+Then one thing led to another:
+
+- **"Make it turn off when my screen sleeps."** A background service now watches the display.
+- **"It came back with the wrong pattern after sleep."** It turned out the bar quietly resets to its rainbow while the USB connection looks fine. Now Glowdeck checks that the light still answers and restores your settings.
+- **"Now it changes when I switch to my Mac mini."** My Dell monitor has a built-in KVM, so the light physically moves between computers when I switch inputs. Glowdeck detects the light the moment it comes back.
+- **"Could this be a real app in my menu bar, with glass, themes and effects?"**
+- **"…and could it control the other lights in the house too?"**
+
+That's Glowdeck. It started as one AliExpress light bar and ended up as a menu bar app that can find and control the lights around the house: Hue, LIFX, WiZ, WLED, Govee, Nanoleaf, Elgato, and everything else through Home Assistant. It's open source in case your cheap light bar annoys you as much as mine did.
+
 ---
 
 ## What it does

@@ -127,7 +127,20 @@ struct MenuView: View {
     }
 
     private func openDashboard() {
+        closeMenuPanel()
         openWindow(id: "dashboard")
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// MenuBarExtra(.window) has no public "close" API; its panel is the window hosting this view.
+    private func closeMenuPanel() {
+        var closed = false
+        for w in NSApp.windows where w.isVisible && String(describing: type(of: w)).contains("MenuBarExtra") {
+            w.orderOut(nil)
+            closed = true
+        }
+        // Fallback: the panel is the key NSPanel while its button is being clicked.
+        if !closed, let key = NSApp.keyWindow, key is NSPanel { key.orderOut(nil) }
+        log.notice("dashboard: closed menu panel=\(closed, privacy: .public) windows=\(NSApp.windows.map { String(describing: type(of: $0)) }.joined(separator: ","), privacy: .public)")
     }
 }

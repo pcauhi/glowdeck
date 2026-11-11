@@ -44,11 +44,14 @@ public final class LightManager: ObservableObject {
     private nonisolated(unsafe) var rLastPreview: TimeInterval = 0
     private nonisolated(unsafe) var rLastTick = ProcessInfo.processInfo.systemUptime
 
+    /// "state" normally, "demo-state" in demo mode.
+    public nonisolated(unsafe) static var storeName = "state"
+
     public static var storeURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Glowdeck", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("state.json")
+        return dir.appendingPathComponent("\(storeName).json")
     }
 
     public init(providers: [DeviceProvider]? = nil) {
@@ -205,6 +208,7 @@ public final class LightManager: ObservableObject {
     /// Push a light's state to the hardware. `previous` lets us skip unchanged parts (no flashing on slider drags).
     private func apply(to d: LightDevice, previous: LightState? = nil) {
         let s = state(of: d)
+        if previous == nil { log.notice("full re-apply to \(d.id, privacy: .public)") }
         guard effectivelyOn, s.power else {
             d.setPower(false)
             return
@@ -216,8 +220,13 @@ public final class LightManager: ObservableObject {
         case .solid:
             if full || previous?.color != s.color { d.setColor(s.color) }
         case .effect:
-            // A solid frame first stops any firmware effect still running on the light.
-            if full { d.setColor(s.effect.usesColors ? s.color : .black) }
+            // A solid frame first stops any firmware effect still running on the light. Use the colour the
+            // effect is showing right now so a re-apply (reconnect, wake) doesn't blink.
+            if full {
+                let current = preview[d.id].map(RGB.average)
+                    ?? s.effect.color(at: 0, index: 0, phase: 0, s.color, s.color2)
+                d.setColor(current)
+            }
         case .native:
             if let e = s.nativeEffect, full || previous?.nativeEffect != e || previous?.speed != s.speed || previous?.color != s.color {
                 d.startNativeEffect(e, speed: s.speed, color: s.color)
